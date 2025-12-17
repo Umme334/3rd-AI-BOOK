@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Script Test</title>
+</head>
+<body>
+    <div id="root">App should load here</div>
+    <script>
+        // Add some debugging
+        console.log('Page loaded');
+
+        // Check if React is available
+        console.log('React available:', typeof window.React !== 'undefined');
+        console.log('ReactDOM available:', typeof window.ReactDOM !== 'undefined');
+
+        // Try to catch any errors
+        window.addEventListener('error', function(e) {
+            console.error('Global error:', e.error);
+            console.error('Error message:', e.message);
+            console.error('Error stack:', e.error ? e.error.stack : 'No stack');
+        });
+
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('Unhandled promise rejection:', e.reason);
+        });
+    </script>
+</body>
+</html>

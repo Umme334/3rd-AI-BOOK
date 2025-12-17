@@ -1,0 +1,68 @@
+---
+sidebar_position: 3
+title: 'ROS 2 and Gazebo Simulation'
+---
+
+import ChatbotWidget from '@site/src/components/ChatbotWidget';
+import PersonalizationToggle from '@site/src/components/PersonalizationToggle';
+import TranslationToggle from '@site/src/components/TranslationToggle';
+
+# ROS 2 and Gazebo Simulation for Humanoid Robots
+
+<PersonalizationToggle userId="user-123" textbookId="physical-ai-textbook" />
+<TranslationToggle
+  textbookId="physical-ai-textbook"
+  content="# ROS 2 and Gazebo Simulation for Humanoid Robots"
+/>
+
+## Introduction
+
+ROS 2 (Robot Operating System 2) is the middleware that enables communication between different components of a humanoid robot system. It provides the infrastructure for developing complex robotic applications.
+
+<ChatbotWidget textbookId="physical-ai-textbook" sessionId="ros2-chapter" />
+
+## Core Concepts
+
+### DDS Communication
+
+ROS 2 uses DDS (Data Distribution Service) for message passing between nodes. This provides:
+
+- **Real-time performance**: Critical for robot control
+- **Distributed computing**: Nodes can run on different machines
+- **Language independence**: Support for C++, Python, and other languages
+- **Hardware abstraction**: Same code works across different platforms
+
+### Node Architecture
+
+In ROS 2, a robot system is composed of multiple nodes that communicate through topics, services, and actions:
+
+```python
+# Example ROS 2 node for humanoid robot control
+import rclpy
+from rclpy.node import Node
+
+class HumanoidController(Node):
+    def __init__(self):
+        super().__init__('humanoid_controller')
+        self.publisher = self.create_publisher(String, 'joint_commands', 10)
+```
+
+## Gazebo Simulation
+
+Gazebo is a 3D simulation environment that allows testing of humanoid robots in realistic physics environments. It integrates seamlessly with ROS 2 through:
+
+- **Gazebo ROS packages**: Bridge between Gazebo and ROS 2
+- **Physics engines**: ODE, Bullet, Simbody for realistic simulation
+- **Sensors**: Cameras, LIDAR, IMU, and force/torque sensors
+- **Plugins**: Custom plugins for specific robot behaviors
+
+## Practical Exercise
+
+Try implementing a simple ROS 2 publisher that sends joint commands to a simulated humanoid robot. The chatbot can help you with code examples and troubleshooting.
+
+<TranslationToggle
+  textbookId="physical-ai-textbook"
+  content="## Practical Exercise
+
+Try implementing a simple ROS 2 publisher that sends joint commands to a simulated humanoid robot. The chatbot can help you with code examples and troubleshooting."
+/>

@@ -1,0 +1,356 @@
+openapi: 3.0.0
+info:
+  title: Textbook Generation API
+  description: API for generating interactive textbooks using AI
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/v1
+    description: Production server
+
+paths:
+  /textbooks:
+    post:
+      summary: Create a new textbook
+      description: Initiates the generation of a new textbook based on provided parameters
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TextbookCreateRequest'
+      responses:
+        '201':
+          description: Textbook creation initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Textbook'
+        '400':
+          description: Invalid input parameters
+        '422':
+          description: Validation error in provided parameters
+
+  /textbooks/{id}:
+    get:
+      summary: Get textbook details
+      description: Retrieve details of a specific textbook by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Textbook details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Textbook'
+        '404':
+          description: Textbook not found
+
+  /textbooks/{id}/generate:
+    post:
+      summary: Generate textbook content
+      description: Starts the AI content generation process for a textbook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Generation started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Textbook'
+        '404':
+          description: Textbook not found
+        '409':
+          description: Textbook is already being generated
+
+  /textbooks/{id}/progress:
+    get:
+      summary: Get generation progress
+      description: Check the progress of textbook generation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Progress information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgressResponse'
+        '404':
+          description: Textbook not found
+
+  /textbooks/{id}/preview:
+    get:
+      summary: Get textbook preview
+      description: Retrieve a preview of the generated textbook content
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Preview content retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TextbookPreview'
+        '404':
+          description: Textbook not found
+        '409':
+          description: Textbook not yet generated
+
+  /textbooks/{id}/export:
+    post:
+      summary: Export textbook
+      description: Export the textbook in the specified format
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '200':
+          description: Export completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+        '400':
+          description: Invalid export format
+        '404':
+          description: Textbook not found
+        '409':
+          description: Textbook not yet generated
+
+components:
+  schemas:
+    TextbookCreateRequest:
+      type: object
+      required:
+        - title
+        - subject
+        - difficulty
+      properties:
+        title:
+          type: string
+          description: Title of the textbook
+          example: "Introduction to Physical AI and Humanoid Robotics"
+        subject:
+          type: string
+          description: Subject area of the textbook
+          example: "Physical AI"
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced]
+          description: Difficulty level of the textbook
+        target_audience:
+          type: string
+          description: Description of the target audience
+          example: "Undergraduate students in robotics"
+        chapter_count:
+          type: integer
+          description: Number of chapters to generate (default: 5)
+          minimum: 1
+          maximum: 20
+        include_quizzes:
+          type: boolean
+          description: Whether to include quizzes in the textbook
+          default: true
+        include_summaries:
+          type: boolean
+          description: Whether to include chapter summaries
+          default: true
+
+    Textbook:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the textbook
+        title:
+          type: string
+          description: Title of the textbook
+        subject:
+          type: string
+          description: Subject area of the textbook
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        target_audience:
+          type: string
+          description: Description of the target audience
+        status:
+          type: string
+          enum: [draft, generating, complete, failed]
+          description: Current status of the textbook
+        created_at:
+          type: string
+          format: date-time
+          description: When the textbook was created
+        updated_at:
+          type: string
+          format: date-time
+          description: When the textbook was last updated
+        chapters:
+          type: array
+          items:
+            $ref: '#/components/schemas/Chapter'
+        export_formats:
+          type: array
+          items:
+            type: string
+          description: Available export formats
+
+    Chapter:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the chapter
+        title:
+          type: string
+          description: Title of the chapter
+        position:
+          type: integer
+          description: Position of the chapter in the textbook
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Section'
+        word_count:
+          type: integer
+          description: Estimated word count of the chapter
+        learning_objectives:
+          type: array
+          items:
+            type: string
+          description: Learning objectives for this chapter
+
+    Section:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the section
+        title:
+          type: string
+          description: Title of the section
+        content:
+          type: string
+          description: Main content of the section
+        position:
+          type: integer
+          description: Position of the section in the chapter
+        interactive_elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/InteractiveElement'
+        key_terms:
+          type: array
+          items:
+            type: string
+          description: Key terms defined in this section
+
+    InteractiveElement:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the element
+        type:
+          type: string
+          enum: [quiz, summary, booster, exercise]
+        content:
+          type: string
+          description: The actual interactive content
+        position:
+          type: integer
+          description: Position within the parent section
+
+    ProgressResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Textbook ID
+        status:
+          type: string
+          enum: [draft, generating, complete, failed]
+        progress:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Progress as a percentage (0.0 to 1.0)
+        message:
+          type: string
+          description: Human-readable status message
+
+    TextbookPreview:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Textbook ID
+        title:
+          type: string
+          description: Textbook title
+        preview_content:
+          type: string
+          description: Preview of the textbook content
+        chapters_count:
+          type: integer
+          description: Number of chapters in the textbook
+
+    ExportRequest:
+      type: object
+      required:
+        - format
+      properties:
+        format:
+          type: string
+          enum: [pdf, html, markdown]
+          description: Desired export format
+        include_navigation:
+          type: boolean
+          description: Whether to include navigation elements
+          default: true
+
+    ExportResponse:
+      type: object
+      properties:
+        download_url:
+          type: string
+          description: URL to download the exported file
+        format:
+          type: string
+          enum: [pdf, html, markdown]
+        file_size:
+          type: integer
+          description: Size of the exported file in bytes
+        expires_at:
+          type: string
+          format: date-time
+          description: When the download link expires

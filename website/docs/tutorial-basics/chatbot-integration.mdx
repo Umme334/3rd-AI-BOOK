@@ -1,0 +1,44 @@
+---
+sidebar_position: 2
+title: 'Chatbot Integration'
+---
+
+import ChatbotWidget from '@site/src/components/ChatbotWidget';
+import PersonalizationToggle from '@site/src/components/PersonalizationToggle';
+import TranslationToggle from '@site/src/components/TranslationToggle';
+
+# Chatbot Integration in Textbook Pages
+
+This page demonstrates how to integrate the RAG chatbot, personalization, and translation features into textbook content.
+
+## Sample Textbook Content
+
+Welcome to the Physical AI and Humanoid Robotics textbook! This content can be enhanced with our interactive features.
+
+### ROS 2 Architecture
+
+ROS 2 (Robot Operating System 2) provides the middleware for communication between different components of a robot system. It uses DDS (Data Distribution Service) for message passing and provides features like:
+
+- Real-time performance
+- Distributed computing
+- Language independence
+- Hardware abstraction
+
+<ChatbotWidget textbookId="physical-ai-textbook" />
+
+## Personalization Toggle
+
+<PersonalizationToggle userId="user-123" textbookId="physical-ai-textbook" />
+
+## Translation Toggle
+
+<TranslationToggle
+  textbookId="physical-ai-textbook"
+  content="Welcome to the Physical AI and Humanoid Robotics textbook! This content can be enhanced with our interactive features."
+/>
+
+## How It Works
+
+The chatbot widget on the right allows you to ask questions about this textbook content. It uses RAG (Retrieval-Augmented Generation) to provide accurate answers based on the material you're reading.
+
+The personalization toggle adapts the content based on your background and learning preferences, while the translation toggle allows you to switch between English and Urdu.
