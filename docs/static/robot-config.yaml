@@ -1,0 +1,27 @@
+# Robot Configuration for Textbook Examples
+robot:
+  name: "textbook_humanoid"
+  urdf: "textbook_humanoid.urdf"
+  controller:
+    type: "pid"
+    gains:
+      kp: 100.0
+      ki: 0.01
+      kd: 10.0
+
+sensors:
+  imu:
+    topic: "/imu/data"
+    rate: 100
+  joint_state:
+    topic: "/joint_states"
+    rate: 50
+
+actuators:
+  joints:
+    - "left_hip_joint"
+    - "left_knee_joint"
+    - "left_ankle_joint"
+    - "right_hip_joint"
+    - "right_knee_joint"
+    - "right_ankle_joint"
