@@ -9,3 +9,13 @@ python-multipart==0.0.6
 python-dotenv==1.0.0
 pandas==2.1.4
 PyYAML==6.0.1
+qdrant-client==1.9.1
+better-exceptions==0.3.3
+asyncpg==0.29.0
+sqlalchemy==2.0.23
+alembic==1.13.1
+passlib==1.7.4
+bcrypt==4.1.2
+jose==1.0.0
+python-jose==3.3.0
+cryptography==41.0.8

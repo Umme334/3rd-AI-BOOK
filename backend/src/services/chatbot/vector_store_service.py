@@ -1,22 +1,61 @@
 from typing import List, Dict, Any, Optional
 import logging
-import json
-import os
-from pathlib import Path
+import uuid
+from qdrant_client import QdrantClient
+from qdrant_client.http import models
+from qdrant_client.http.models import Distance, VectorParams, PointStruct
+from sentence_transformers import SentenceTransformer
+import numpy as np
+import hashlib
+import asyncio
 
 logger = logging.getLogger(__name__)
 
 
-class VectorStoreService:
+class QdrantVectorStoreService:
     """
-    Service for managing vector storage and retrieval (mock implementation for development)
-    In production, this would connect to a vector database like Qdrant or Pinecone
+    Service for managing vector storage and retrieval using Qdrant
     """
 
     def __init__(self):
-        # For development, just initialize without external dependencies
-        # In production, this would connect to a proper vector database
-        pass
+        # Initialize Qdrant client
+        self.client = QdrantClient(
+            host="localhost",
+            port=6333
+        )
+
+        # Initialize sentence transformer for embeddings
+        self.encoder = SentenceTransformer('all-MiniLM-L6-v2')
+
+        # Collection name for textbook content
+        self.collection_name = "textbook_content"
+
+        # Create collection if it doesn't exist
+        self._create_collection()
+
+    def _create_collection(self):
+        """
+        Create Qdrant collection for storing textbook content
+        """
+        try:
+            # Check if collection exists
+            collections = self.client.get_collections()
+            collection_names = [col.name for col in collections.collections]
+
+            if self.collection_name not in collection_names:
+                # Create collection with vector configuration
+                self.client.create_collection(
+                    collection_name=self.collection_name,
+                    vectors_config=VectorParams(size=384, distance=Distance.COSINE)  # all-MiniLM-L6-v2 produces 384-dim vectors
+                )
+
+                logger.info(f"Created Qdrant collection: {self.collection_name}")
+            else:
+                logger.info(f"Qdrant collection {self.collection_name} already exists")
+
+        except Exception as e:
+            logger.error(f"Error creating Qdrant collection: {str(e)}")
+            raise
 
     async def add_content_chunks(
         self,
@@ -24,25 +63,54 @@ class VectorStoreService:
         chunks: List[Dict[str, Any]]
     ) -> bool:
         """
-        Add content chunks to the vector store for a textbook
+        Add content chunks to the Qdrant vector store for a textbook
         """
         try:
-            # In this implementation, we'll store the chunks in a simple file-based system
-            # In a production environment, this would use Qdrant or another vector database
-            storage_path = os.path.join("backend", "data", f"{textbook_id}_chunks.json")
+            points = []
 
-            # Create directory if it doesn't exist
-            os.makedirs(os.path.dirname(storage_path), exist_ok=True)
+            for chunk in chunks:
+                # Generate embeddings for the content
+                content_embedding = self.encoder.encode(chunk.get("content", ""))
 
-            # Save chunks to file
-            with open(storage_path, 'w', encoding='utf-8') as f:
-                json.dump(chunks, f, ensure_ascii=False, indent=2, default=str)
+                # Create a unique ID for this chunk
+                chunk_id = str(uuid.uuid5(
+                    uuid.NAMESPACE_DNS,
+                    f"{textbook_id}_{chunk.get('id', str(uuid.uuid4()))}"
+                ))
 
-            logger.info(f"Stored {len(chunks)} chunks for textbook {textbook_id}")
-            return True
+                # Prepare metadata
+                metadata = {
+                    "textbook_id": textbook_id,
+                    "chunk_id": chunk.get("id", ""),
+                    "source": chunk.get("source", ""),
+                    "chapter_title": chunk.get("metadata", {}).get("chapter_title", ""),
+                    "section_title": chunk.get("metadata", {}).get("section_title", ""),
+                    **chunk.get("metadata", {})
+                }
+
+                # Create point structure
+                point = PointStruct(
+                    id=chunk_id,
+                    vector=content_embedding.tolist(),
+                    payload=metadata
+                )
+
+                points.append(point)
+
+            # Upload points to Qdrant
+            if points:
+                self.client.upsert(
+                    collection_name=self.collection_name,
+                    points=points
+                )
+
+                logger.info(f"Successfully added {len(points)} chunks for textbook {textbook_id}")
+                return True
+
+            return True  # No chunks to add, but operation was successful
 
         except Exception as e:
-            logger.error(f"Error adding content chunks: {str(e)}")
+            logger.error(f"Error adding content chunks to Qdrant: {str(e)}")
             return False
 
     async def search_similar_chunks(
@@ -52,79 +120,80 @@ class VectorStoreService:
         top_k: int = 5
     ) -> List[Dict[str, Any]]:
         """
-        Search for similar content chunks in the vector store
+        Search for similar content chunks in the Qdrant vector store
         """
         try:
-            # Load stored chunks for the textbook
-            storage_path = os.path.join("backend", "data", f"{textbook_id}_chunks.json")
+            # Generate embedding for the query
+            query_embedding = self.encoder.encode(query).tolist()
 
-            if not os.path.exists(storage_path):
-                logger.warning(f"No chunks found for textbook {textbook_id}")
-                return []
+            # Prepare filter to only search within the specific textbook
+            query_filter = models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="textbook_id",
+                        match=models.MatchValue(value=textbook_id)
+                    )
+                ]
+            )
 
-            with open(storage_path, 'r', encoding='utf-8') as f:
-                chunks = json.load(f)
+            # Perform search in Qdrant
+            search_results = self.client.search(
+                collection_name=self.collection_name,
+                query_vector=query_embedding,
+                query_filter=query_filter,
+                limit=top_k,
+                with_payload=True
+            )
 
-            # Calculate similarity scores using Google Cloud Language API
-            # For this implementation, we'll use a simple similarity calculation
-            # In a real implementation, this would use proper vector similarity
-            scored_chunks = []
-            for chunk in chunks:
-                similarity = self._calculate_similarity(query, chunk.get("content", ""))
-                chunk["similarity_score"] = similarity
-                scored_chunks.append(chunk)
+            # Format results
+            results = []
+            for result in search_results:
+                chunk_data = {
+                    "id": result.id,
+                    "content": result.payload.get("content", ""),
+                    "source": result.payload.get("source", ""),
+                    "chapter": result.payload.get("chapter_title", "Unknown Chapter"),
+                    "section": result.payload.get("section_title", "Unknown Section"),
+                    "similarity_score": result.score,
+                    "metadata": result.payload
+                }
+                results.append(chunk_data)
 
-            # Sort by similarity score in descending order
-            scored_chunks.sort(key=lambda x: x["similarity_score"], reverse=True)
-
-            # Return top_k chunks
-            return scored_chunks[:top_k]
+            logger.info(f"Found {len(results)} similar chunks for query in textbook {textbook_id}")
+            return results
 
         except Exception as e:
-            logger.error(f"Error searching similar chunks: {str(e)}")
+            logger.error(f"Error searching similar chunks in Qdrant: {str(e)}")
             return []
-
-    def _calculate_similarity(self, query: str, content: str) -> float:
-        """
-        Calculate similarity between query and content using Google Cloud Language API
-        """
-        try:
-            # For this implementation, we'll use a simple word overlap approach
-            # In a real implementation, this would use the Google Cloud Language API
-            query_words = set(query.lower().split())
-            content_words = set(content.lower().split())
-
-            if not query_words or not content_words:
-                return 0.0
-
-            # Calculate Jaccard similarity
-            intersection = len(query_words.intersection(content_words))
-            union = len(query_words.union(content_words))
-
-            if union == 0:
-                return 0.0
-
-            return float(intersection) / union
-
-        except Exception as e:
-            logger.error(f"Error calculating similarity: {str(e)}")
-            return 0.0
 
     async def delete_textbook_content(self, textbook_id: str) -> bool:
         """
-        Remove all content chunks for a textbook from the vector store
+        Remove all content chunks for a textbook from the Qdrant vector store
         """
         try:
-            storage_path = os.path.join("backend", "data", f"{textbook_id}_chunks.json")
+            # Prepare filter to find points for this textbook
+            filter_condition = models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="textbook_id",
+                        match=models.MatchValue(value=textbook_id)
+                    )
+                ]
+            )
 
-            if os.path.exists(storage_path):
-                os.remove(storage_path)
-                logger.info(f"Deleted chunks for textbook {textbook_id}")
+            # Delete points matching the filter
+            self.client.delete(
+                collection_name=self.collection_name,
+                points_selector=models.FilterSelector(
+                    filter=filter_condition
+                )
+            )
 
+            logger.info(f"Deleted all chunks for textbook {textbook_id}")
             return True
 
         except Exception as e:
-            logger.error(f"Error deleting textbook content: {str(e)}")
+            logger.error(f"Error deleting textbook content from Qdrant: {str(e)}")
             return False
 
     async def update_content_chunk(
@@ -134,33 +203,67 @@ class VectorStoreService:
         new_content: str
     ) -> bool:
         """
-        Update a specific content chunk in the vector store
+        Update a specific content chunk in the Qdrant vector store
         """
         try:
-            storage_path = os.path.join("backend", "data", f"{textbook_id}_chunks.json")
+            # Generate new embedding for the updated content
+            new_embedding = self.encoder.encode(new_content).tolist()
 
-            if not os.path.exists(storage_path):
-                logger.warning(f"No chunks found for textbook {textbook_id}")
-                return False
+            # Prepare updated payload
+            updated_payload = {
+                "textbook_id": textbook_id,
+                "chunk_id": chunk_id,
+                "content": new_content,
+                "updated_at": str(uuid.uuid4())  # Add timestamp
+            }
 
-            with open(storage_path, 'r', encoding='utf-8') as f:
-                chunks = json.load(f)
+            # Update the point in Qdrant
+            # Note: Qdrant doesn't have a direct update operation, so we need to upsert
+            point = PointStruct(
+                id=chunk_id,
+                vector=new_embedding,
+                payload=updated_payload
+            )
 
-            # Find and update the chunk
-            updated = False
-            for i, chunk in enumerate(chunks):
-                if chunk.get("id") == chunk_id:
-                    chunks[i]["content"] = new_content
-                    updated = True
-                    break
+            self.client.upsert(
+                collection_name=self.collection_name,
+                points=[point]
+            )
 
-            if updated:
-                # Save updated chunks back to file
-                with open(storage_path, 'w', encoding='utf-8') as f:
-                    json.dump(chunks, f, ensure_ascii=False, indent=2, default=str)
-
-            return updated
+            logger.info(f"Updated chunk {chunk_id} for textbook {textbook_id}")
+            return True
 
         except Exception as e:
-            logger.error(f"Error updating content chunk: {str(e)}")
+            logger.error(f"Error updating content chunk in Qdrant: {str(e)}")
             return False
+
+    async def get_textbook_chunks_count(self, textbook_id: str) -> int:
+        """
+        Get the count of chunks for a specific textbook
+        """
+        try:
+            # Prepare filter to count points for this textbook
+            filter_condition = models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="textbook_id",
+                        match=models.MatchValue(value=textbook_id)
+                    )
+                ]
+            )
+
+            # Count points matching the filter
+            count_result = self.client.count(
+                collection_name=self.collection_name,
+                count_filter=filter_condition
+            )
+
+            return count_result.count
+
+        except Exception as e:
+            logger.error(f"Error counting textbook chunks in Qdrant: {str(e)}")
+            return 0
+
+
+# Backward compatibility for existing code
+VectorStoreService = QdrantVectorStoreService

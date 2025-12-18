@@ -27,6 +27,22 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Textbook Chapters',
+      items: [
+        'chapter-01-introduction',
+        'chapter-02-ros2',
+        'chapter-03-simulation',
+        'chapter-04-gazebo-unity',
+        'chapter-05-nvidia-isaac',
+        'chapter-06-vla-capstone',
+        'chapter-07-locomotion',
+        'chapter-08-manipulation',
+        'chapter-09-multi-modal-interaction',
+        'chapter-10-deployment',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Physical AI Fundamentals',
       items: [
         'physical-ai/introduction',
