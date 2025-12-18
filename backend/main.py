@@ -54,6 +54,13 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": __import__('datetime').datetime.now()}
 
+# Initialize models to resolve forward references
+from src.models import rebuild_models
+
+# Initialize default textbook on startup
+from src.initialize_default_textbook import initialize_default_textbook
+initialize_default_textbook()
+
 # For running with uvicorn
 # if __name__ == "__main__":
 #     import uvicorn

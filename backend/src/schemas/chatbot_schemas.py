@@ -13,6 +13,7 @@ class ChatbotQueryRequest(BaseModel):
     user_id: Optional[str] = None
     context_window: Optional[int] = 5  # Number of previous messages to include
     temperature: Optional[float] = 0.7  # Controls randomness in responses
+    selected_text: Optional[str] = None  # Text selected by the user to focus the query on
 
 
 class ChatbotResponse(BaseModel):
@@ -25,6 +26,8 @@ class ChatbotResponse(BaseModel):
     sources: List[Dict[str, Any]]  # List of source references used to generate response
     confidence: float  # Confidence score for the response (0-1)
     tokens_used: int  # Number of tokens used in the response
+    context_sources: Optional[List[str]] = None  # Sources of context used
+    followup_questions: Optional[List[str]] = None  # Potential follow-up questions
 
 
 class ChatbotSessionCreateRequest(BaseModel):

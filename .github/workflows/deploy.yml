@@ -3,17 +3,33 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+<<<<<<< HEAD
   workflow_dispatch:
+=======
+  pull_request:
+    branches: [main]
+>>>>>>> 8d40f56 (Add comprehensive RAG chatbot, auth, personalization, and translation features)
 
 jobs:
   deploy:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
     steps:
+<<<<<<< HEAD
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           node-version: 18
+=======
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+>>>>>>> 8d40f56 (Add comprehensive RAG chatbot, auth, personalization, and translation features)
           cache: npm
           cache-dependency-path: website/package-lock.json
 
@@ -21,14 +37,26 @@ jobs:
         run: |
           cd website
           npm ci
+<<<<<<< HEAD
+=======
+
+>>>>>>> 8d40f56 (Add comprehensive RAG chatbot, auth, personalization, and translation features)
       - name: Build website
         run: |
           cd website
           npm run build
 
       - name: Deploy to GitHub Pages
+<<<<<<< HEAD
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./website/build
           publish_branch: gh-pages
+=======
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./website/build
+>>>>>>> 8d40f56 (Add comprehensive RAG chatbot, auth, personalization, and translation features)

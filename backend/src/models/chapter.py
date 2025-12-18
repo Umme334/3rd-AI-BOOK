@@ -1,7 +1,6 @@
 from pydantic import BaseModel
-from typing import List, TYPE_CHECKING
-if TYPE_CHECKING:
-    from .section import Section
+from typing import List, Any
+from __future__ import annotations  # Enable postponed evaluation of annotations
 
 
 class Chapter(BaseModel):
@@ -11,7 +10,7 @@ class Chapter(BaseModel):
     id: str
     title: str
     position: int
-    sections: List['Section'] = []
+    sections: List[Any] = []
     word_count: int = 0
     learning_objectives: List[str] = []
     # Physical AI specific attributes
@@ -24,3 +23,8 @@ class Chapter(BaseModel):
     personalized_content: dict = {}  # Content adapted for different user backgrounds
     # Translation support
     translated_titles: dict = {}  # {language_code: translated_title}
+
+    @classmethod
+    def model_rebuild(cls, **kwargs):
+        # Rebuild the model to resolve forward references
+        super().model_rebuild(**kwargs)

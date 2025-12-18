@@ -1,7 +1,6 @@
 from pydantic import BaseModel
-from typing import List, TYPE_CHECKING
-if TYPE_CHECKING:
-    from .interactive_element import InteractiveElement
+from typing import List, Any
+from __future__ import annotations  # Enable postponed evaluation of annotations
 
 
 class Section(BaseModel):
@@ -12,7 +11,7 @@ class Section(BaseModel):
     title: str
     content: str
     position: int
-    interactive_elements: List['InteractiveElement'] = []
+    interactive_elements: List[Any] = []
     key_terms: List[str] = []
     # Physical AI specific attributes
     topic_category: str  # e.g., "theoretical", "practical", "simulation", "hardware"
@@ -23,3 +22,8 @@ class Section(BaseModel):
     difficulty_adjustments: dict = {}  # Difficulty adjustments based on user background
     # Translation support
     translated_content: dict = {}  # {language_code: translated_content}
+
+    @classmethod
+    def model_rebuild(cls, **kwargs):
+        # Rebuild the model to resolve forward references
+        super().model_rebuild(**kwargs)

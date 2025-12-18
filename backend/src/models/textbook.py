@@ -1,11 +1,8 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .chapter import Chapter
+from __future__ import annotations  # Enable postponed evaluation of annotations
 
 
 class TextbookStatus(str, Enum):
@@ -58,3 +55,8 @@ class Textbook(BaseModel):
             self.learning_outcomes = []
         if not self.available_translations:
             self.available_translations = ["en"]
+
+    @classmethod
+    def model_rebuild(cls, **kwargs):
+        # Rebuild the model to resolve forward references
+        super().model_rebuild(**kwargs)

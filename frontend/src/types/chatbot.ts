@@ -2,11 +2,13 @@ export interface ChatbotQueryRequest {
   textbook_id: string;
   query: string;
   session_id?: string;
+  selected_text?: string;
 }
 
 export interface ChatbotResponse {
   response: string;
   session_id: string;
+  sources: Array<Record<string, any>>;
   context_sources: string[];
   followup_questions: string[];
   query_time: string;

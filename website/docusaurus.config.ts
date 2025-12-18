@@ -1,6 +1,7 @@
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import path from 'path';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -80,6 +81,15 @@ const config: Config = {
   themes: [
     // Add @docusaurus/theme-live-codeblock for interactive code blocks
     '@docusaurus/theme-live-codeblock',
+  ],
+
+  plugins: [
+    // Add the RAG Chatbot plugin
+    [
+      path.resolve(__dirname, './src/plugins/docusaurus-plugin-rag-chatbot'),
+      {}
+    ],
+    // Other plugins can be added here
   ],
 
   themeConfig: {

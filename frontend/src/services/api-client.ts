@@ -62,18 +62,37 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:800
 
 class ApiClient {
   private baseUrl: string;
+  private authToken: string | null = null;
 
   constructor() {
     this.baseUrl = API_BASE_URL;
+  }
+
+  setAuthToken(token: string) {
+    this.authToken = token;
+  }
+
+  clearAuthToken() {
+    this.authToken = null;
+  }
+
+  private getHeaders(includeAuth = true) {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (includeAuth && this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`;
+    }
+
+    return headers;
   }
 
   // Textbook Generation API
   async createTextbook(request: TextbookCreateRequest): Promise<TextbookResponse> {
     const response = await fetch(`${this.baseUrl}/textbooks`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify(request),
     });
 
@@ -87,6 +106,7 @@ class ApiClient {
   async generateTextbookContent(textbookId: string): Promise<any> {
     const response = await fetch(`${this.baseUrl}/textbooks/${textbookId}/generate`, {
       method: 'POST',
+      headers: this.getHeaders(),
     });
 
     if (!response.ok) {
@@ -97,7 +117,9 @@ class ApiClient {
   }
 
   async getTextbook(textbookId: string): Promise<TextbookResponse> {
-    const response = await fetch(`${this.baseUrl}/textbooks/${textbookId}`);
+    const response = await fetch(`${this.baseUrl}/textbooks/${textbookId}`, {
+      headers: this.getHeaders(),
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to get textbook: ${response.statusText}`);
@@ -107,7 +129,9 @@ class ApiClient {
   }
 
   async getGenerationProgress(textbookId: string): Promise<ProgressResponse> {
-    const response = await fetch(`${this.baseUrl}/textbooks/${textbookId}/progress`);
+    const response = await fetch(`${this.baseUrl}/textbooks/${textbookId}/progress`, {
+      headers: this.getHeaders(),
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to get progress: ${response.statusText}`);
@@ -119,9 +143,7 @@ class ApiClient {
   async customizeTextbookStructure(textbookId: string, structure: any): Promise<any> {
     const response = await fetch(`${this.baseUrl}/textbooks/${textbookId}/structure`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify(structure),
     });
 
@@ -135,9 +157,7 @@ class ApiClient {
   async exportTextbook(textbookId: string, format: string): Promise<any> {
     const response = await fetch(`${this.baseUrl}/textbooks/${textbookId}/export`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify({ format, include_navigation: true }),
     });
 
@@ -152,9 +172,7 @@ class ApiClient {
   async queryChatbot(request: ChatbotQueryRequest): Promise<any> {
     const response = await fetch(`${this.baseUrl}/chatbot/query`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify(request),
     });
 
@@ -168,9 +186,7 @@ class ApiClient {
   async createChatbotSession(request: ChatbotSessionCreateRequest): Promise<any> {
     const response = await fetch(`${this.baseUrl}/chatbot/sessions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify(request),
     });
 
@@ -184,6 +200,7 @@ class ApiClient {
   async indexTextbookForRag(textbookId: string): Promise<any> {
     const response = await fetch(`${this.baseUrl}/chatbot/index-textbook/${textbookId}`, {
       method: 'POST',
+      headers: this.getHeaders(),
     });
 
     if (!response.ok) {
@@ -197,9 +214,7 @@ class ApiClient {
   async signup(request: SignupRequest): Promise<any> {
     const response = await fetch(`${this.baseUrl}/auth/signup`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(false), // Don't include auth header for signup
       body: JSON.stringify(request),
     });
 
@@ -213,9 +228,7 @@ class ApiClient {
   async signin(request: SigninRequest): Promise<any> {
     const response = await fetch(`${this.baseUrl}/auth/signin`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(false), // Don't include auth header for signin
       body: JSON.stringify(request),
     });
 
@@ -227,7 +240,9 @@ class ApiClient {
   }
 
   async getUserProfile(userId: string): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/auth/profile/${userId}`);
+    const response = await fetch(`${this.baseUrl}/auth/profile/${userId}`, {
+      headers: this.getHeaders(), // Include auth header for getting profile
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to get user profile: ${response.statusText}`);
@@ -239,9 +254,7 @@ class ApiClient {
   async updateUserProfile(userId: string, profile: any): Promise<any> {
     const response = await fetch(`${this.baseUrl}/auth/profile/${userId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(), // Include auth header for updating profile
       body: JSON.stringify(profile),
     });
 
@@ -256,9 +269,7 @@ class ApiClient {
   async adaptContent(request: PersonalizationRequest): Promise<any> {
     const response = await fetch(`${this.baseUrl}/personalization/adapt`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify(request),
     });
 
@@ -273,9 +284,7 @@ class ApiClient {
   async translateContent(request: TranslationRequest): Promise<any> {
     const response = await fetch(`${this.baseUrl}/translation/translate`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify(request),
     });
 

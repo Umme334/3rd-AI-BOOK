@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     vector_db_url: str = os.getenv("VECTOR_DB_URL", "http://localhost:6333")
     vector_db_collection_name: str = os.getenv("VECTOR_DB_COLLECTION_NAME", "textbooks")
 
+    # Qdrant Cloud settings
+    qdrant_url: Optional[str] = os.getenv("QDRANT_URL")
+    qdrant_api_key: Optional[str] = os.getenv("QDRANT_API_KEY")
+
     # CORS settings
     cors_origins: list = [
         "http://localhost",

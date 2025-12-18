@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Container, Paper, Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
-import { ChatbotWidget } from '../components/chatbot/chatbot-widget';
+import FullChatbot from '../components/chatbot/full-chatbot';
 
 interface ChatbotPageProps {
   textbookId?: string;
 }
 
-const ChatbotPage: React.FC<ChatbotPageProps> = ({ textbookId = 'default-textbook' }) => {
+const ChatbotPage: React.FC<ChatbotPageProps> = ({ textbookId = 'physical-ai-textbook' }) => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showSessionDialog, setShowSessionDialog] = useState(false);
 
@@ -37,8 +37,8 @@ const ChatbotPage: React.FC<ChatbotPageProps> = ({ textbookId = 'default-textboo
         </Typography>
 
         <Box sx={{ height: '650px' }}>
-          <ChatbotWidget
-            textbookId={textbookId}
+          <FullChatbot
+            textbookId={textbookId || 'default-textbook'}
             sessionId={sessionId || undefined}
           />
         </Box>

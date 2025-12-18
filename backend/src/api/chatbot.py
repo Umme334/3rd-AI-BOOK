@@ -30,10 +30,24 @@ async def chatbot_query(request: ChatbotQueryRequest):
     """
     try:
         # Validate that the textbook exists
-        # In a real implementation, we would have a textbook service to validate this
-        # For now, we'll just check that the textbook_id is provided
         if not request.textbook_id:
             raise ValidationError("textbook_id is required")
+
+        # Import textbook service to validate textbook exists and check if it's indexed
+        from ..services.textbook_service import TextbookService
+        from ..exceptions import TextbookNotFoundError
+
+        textbook_service = TextbookService()
+
+        try:
+            textbook = textbook_service.get_textbook(request.textbook_id)
+
+            # Check if textbook is indexed for RAG, if not, log a warning
+            if not textbook.rag_indexed:
+                # Optionally trigger indexing if not done yet, but for now just log
+                print(f"Warning: Textbook {request.textbook_id} is not indexed for RAG. Consider running /index-textbook/{request.textbook_id}")
+        except TextbookNotFoundError:
+            raise HTTPException(status_code=404, detail=f"Textbook with ID {request.textbook_id} not found")
 
         # Get or create a chatbot session
         session_id = request.session_id
@@ -50,12 +64,13 @@ async def chatbot_query(request: ChatbotQueryRequest):
             )
 
         # Process the query using RAG
-        response_content = await rag_service.process_query(session, request.query)
+        response_content = await rag_service.process_query(session, request.query, request.selected_text)
 
         # Create response
         response = ChatbotResponse(
             response=response_content,
             session_id=session_id,
+            sources=[],  # This would be populated with actual sources in a full implementation
             context_sources=["textbook_content"],  # In a real implementation, this would be actual sources
             followup_questions=[],  # In a real implementation, this would be generated
             query_time=datetime.now(),
@@ -148,43 +163,41 @@ async def index_textbook_for_rag(textbook_id: str, background_tasks: BackgroundT
     Index a textbook for RAG search.
     """
     try:
-        # In a real implementation, this would fetch the textbook from the database
-        # For now, we'll create a mock textbook with basic structure
-        from ..models.chapter import Chapter
-        mock_chapter = Chapter(
-            id="mock_chapter_id",
-            title="Mock Chapter",
-            content="This is mock content for testing the RAG indexing functionality.",
-            sections=[],
-            metadata={}
-        )
+        # Import the textbook service to fetch the actual textbook
+        from ..services.textbook_service import TextbookService
+        from ..exceptions import TextbookNotFoundError
 
-        mock_textbook = Textbook(
-            id=textbook_id,
-            title="Mock Textbook for RAG",
-            subject="Physical AI and Humanoid Robotics",
-            difficulty="intermediate",
-            chapters=[mock_chapter],
-            rag_indexed=False
-        )
+        textbook_service = TextbookService()
+
+        try:
+            # Fetch the actual textbook from storage
+            textbook = textbook_service.get_textbook(textbook_id)
+        except TextbookNotFoundError:
+            raise HTTPException(status_code=404, detail=f"Textbook with ID {textbook_id} not found")
 
         # Index the textbook content in the background
-        indexing_success = await rag_service.index_textbook_content(mock_textbook)
+        indexing_success = await rag_service.index_textbook_content(textbook)
 
         if indexing_success:
             # Update the textbook's RAG indexing status
-            mock_textbook.rag_indexed = True
-            mock_textbook.rag_index_id = f"index_{textbook_id}"
-            mock_textbook.rag_last_indexed = datetime.now()
+            textbook.rag_indexed = True
+            textbook.rag_index_id = f"index_{textbook_id}"
+            textbook.rag_last_indexed = datetime.now()
+
+            # Save the updated textbook back to storage
+            textbook_service.storage.save_textbook(textbook_id, textbook.model_dump())
 
             return {
                 "message": f"Successfully indexed textbook {textbook_id} for RAG",
                 "textbook_id": textbook_id,
-                "indexed_at": datetime.now()
+                "indexed_at": datetime.now(),
+                "indexed_chapters_count": len(textbook.chapters)
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to index textbook content")
 
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error indexing textbook: {str(e)}")
 

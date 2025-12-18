@@ -8,15 +8,26 @@ load_dotenv()
 
 class OpenAIClient:
     """
-    Client for interacting with Google API for textbook content generation.
+    Client for interacting with Google API for chat and content generation.
     """
 
     def __init__(self):
-        # Use Google Client instead of OpenAI
+        # Initialize Google client as primary method
         try:
             self.google_client = GoogleClient()
+            print("Google API client initialized successfully.")
         except ValueError as e:
-            raise ValueError(f"Google API client initialization failed: {str(e)}")
+            print(f"Google API client initialization failed: {str(e)}")
+            self.google_client = None
+
+        # Check if OpenAI API key is available (for future use)
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        if self.openai_api_key:
+            self.openai_enabled = True
+            print("OpenAI API key found.")
+        else:
+            self.openai_enabled = False
+            print("OpenAI API key not found. Using Google API for all operations.")
 
     def generate_textbook_content(
         self,
@@ -210,3 +221,37 @@ class OpenAIClient:
             """
 
         return prompt
+
+    def generate_chat_response(self, query: str, context: str = "") -> str:
+        """
+        Generate a chat response using Google API with provided context.
+
+        Args:
+            query: User's query/question
+            context: Context from textbook content to base response on
+
+        Returns:
+            Generated response as a string
+        """
+        # Use Google API for chat responses
+        if self.google_client:
+            try:
+                # Prepare the full prompt with context
+                system_prompt = "You are an AI assistant for a Physical AI and Humanoid Robotics textbook. Answer questions based on the provided context from the textbook."
+
+                full_query = query
+                if context:
+                    full_query = f"Context from textbook:\n{context}\n\nQuestion: {query}\n\nPlease provide a helpful, accurate answer based on the textbook content. If the context doesn't contain the answer, acknowledge this and suggest where they might find the information."
+
+                return self.google_client.generate_textbook_content(
+                    subject=full_query,
+                    difficulty="intermediate",
+                    chapter_count=1,
+                    include_quizzes=False,
+                    include_summaries=False
+                )
+            except Exception as e:
+                print(f"Google API error: {str(e)}")
+                return f"I'm sorry, I encountered an error processing your request: {str(e)}"
+        else:
+            return "I'm sorry, but I'm unable to process your request as Google API is not configured properly."

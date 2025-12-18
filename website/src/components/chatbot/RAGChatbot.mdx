@@ -1,0 +1,328 @@
+import BrowserOnly from '@docusaurus/BrowserOnly';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+
+// This component allows users to ask questions about the current textbook content
+const RAGChatbot = ({ textbookId, chapterId, sectionTitle }) => {
+  const { user, isAuthenticated } = useAuth();
+  const [selectedText, setSelectedText] = useState('');
+  const [isWidgetVisible, setIsWidgetVisible] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Function to get selected text from the page
+  useEffect(() => {
+    const handleSelection = () => {
+      const selectedText = window.getSelection()?.toString().trim();
+      if (selectedText && selectedText.length > 0) {
+        setSelectedText(selectedText);
+      }
+    };
+
+    document.addEventListener('mouseup', handleSelection);
+    return () => {
+      document.removeEventListener('mouseup', handleSelection);
+    };
+  }, []);
+
+  const toggleWidget = () => {
+    setIsWidgetVisible(!isWidgetVisible);
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim()) return;
+
+    setIsLoading(true);
+
+    try {
+      // Add user message to chat
+      const userMessage = {
+        id: Date.now(),
+        role: 'user',
+        content: inputMessage,
+        timestamp: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, userMessage]);
+
+      // Prepare the query with context
+      const queryData = {
+        query: inputMessage,
+        textbook_id: textbookId || 'physical-ai-textbook',
+        session_id: `session-${Date.now()}`,
+        selected_text: selectedText || undefined,
+        context: {
+          chapter_id: chapterId,
+          section_title: sectionTitle,
+          current_page_content: selectedText || inputMessage
+        }
+      };
+
+      // Call the backend RAG API
+      const response = await fetch('/api/chatbot/query', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}` // If using token auth
+        },
+        body: JSON.stringify(queryData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`API call failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Add bot response to chat
+      const botMessage = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: data.response,
+        sources: data.sources,
+        timestamp: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+      setInputMessage('');
+      setSelectedText(''); // Clear selected text after use
+    } catch (error) {
+      console.error('Error sending message:', error);
+
+      const errorMessage = {
+        id: Date.now(),
+        role: 'assistant',
+        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        timestamp: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div style={{
+        border: '2px solid #1976d2',
+        borderRadius: '8px',
+        padding: '16px',
+        margin: '16px 0',
+        backgroundColor: '#f0f4ff'
+      }}>
+        <h4>🤖 Physical AI Assistant</h4>
+        <p>Please <a href="/login">sign in</a> to access the RAG chatbot and ask questions about this content.</p>
+      </div>
+    );
+  }
+
+  return (
+    <BrowserOnly>
+      {() => (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          zIndex: 1000
+        }}>
+          <button
+            onClick={toggleWidget}
+            style={{
+              backgroundColor: '#1976d2',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '60px',
+              height: '60px',
+              fontSize: '24px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            🤖
+          </button>
+
+          {isWidgetVisible && (
+            <div style={{
+              position: 'absolute',
+              bottom: '70px',
+              right: '0',
+              width: '400px',
+              height: '500px',
+              backgroundColor: 'white',
+              border: '1px solid #ddd',
+              borderRadius: '12px',
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                backgroundColor: '#1976d2',
+                color: 'white',
+                padding: '16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <h3 style={{ margin: 0, fontSize: '16px' }}>Physical AI Assistant</h3>
+                <button
+                  onClick={toggleWidget}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'white',
+                    fontSize: '20px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div style={{
+                flex: 1,
+                padding: '16px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                backgroundColor: '#f9f9f9'
+              }}>
+                {messages.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: '#666', marginTop: '20px' }}>
+                    <p>Hello! I'm your Physical AI & Humanoid Robotics assistant.</p>
+                    <p>Ask me questions about the textbook content, and I'll provide answers based on the material.</p>
+                    {selectedText && (
+                      <div style={{
+                        backgroundColor: '#e3f2fd',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        marginTop: '8px'
+                      }}>
+                        <strong>Selected text:</strong> {selectedText.substring(0, 60)}...
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  messages.map((message) => (
+                    <div
+                      key={message.id}
+                      style={{
+                        maxWidth: '85%',
+                        padding: '12px 16px',
+                        borderRadius: message.role === 'user' ? '18px 4px 18px 18px' : '4px 18px 18px 18px',
+                        backgroundColor: message.role === 'user' ? '#1976d2' : '#e9ecef',
+                        color: message.role === 'user' ? 'white' : '#333',
+                        alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
+                        fontSize: '14px',
+                        lineHeight: '1.4'
+                      }}
+                    >
+                      <div>{message.content}</div>
+                      {message.sources && message.sources.length > 0 && (
+                        <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.8 }}>
+                          Sources: {message.sources.map(src => src.title || src.url).join(', ')}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+                {isLoading && (
+                  <div style={{
+                    maxWidth: '85%',
+                    padding: '12px 16px',
+                    borderRadius: '4px 18px 18px 18px',
+                    backgroundColor: '#e9ecef',
+                    color: '#333',
+                    alignSelf: 'flex-start'
+                  }}>
+                    Thinking...
+                  </div>
+                )}
+              </div>
+
+              {selectedText && (
+                <div style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#e3f2fd',
+                  border: '1px solid #bbdefb',
+                  borderTop: 'none'
+                }}>
+                  <small>
+                    <strong>Selected:</strong> {selectedText.substring(0, 60)}{selectedText.length > 60 ? '...' : ''}
+                    <button
+                      onClick={() => setSelectedText('')}
+                      style={{
+                        float: 'right',
+                        background: 'none',
+                        border: '1px solid #1976d2',
+                        color: '#1976d2',
+                        borderRadius: '4px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </small>
+                </div>
+              )}
+
+              <div style={{
+                padding: '12px',
+                backgroundColor: 'white',
+                borderTop: '1px solid #ddd',
+                display: 'flex'
+              }}>
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder={selectedText
+                    ? "Ask about selected text..."
+                    : "Ask about this content..."}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    padding: '12px 16px',
+                    border: '1px solid #ddd',
+                    borderRadius: '24px',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={isLoading || !inputMessage.trim()}
+                  style={{
+                    marginLeft: '8px',
+                    padding: '12px 20px',
+                    backgroundColor: '#1976d2',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '24px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </BrowserOnly>
+  );
+};
+
+export default RAGChatbot;
